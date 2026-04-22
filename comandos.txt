@@ -5,8 +5,7 @@ Comando para desligar o docker:
 sudo docker-compose down
 
 Comando para acessar o wordpress n vezes
-for i in {1..3}; do curl -s -I http://localhost | gr
-ep X-Upstream; done
+for i in {1..3}; do curl -s -I http://localhost | grep X-Upstream; done
 
 Comando para listar os conteiners wordpress e seus respectivos IPs 
 sudo docker inspect -f '{{.Name}} -> {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(sudo docker-compose ps -q)
