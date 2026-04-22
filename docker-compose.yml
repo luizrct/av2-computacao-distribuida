@@ -1,7 +1,6 @@
 version: '3.8'
 
 services:
-  # 1. O Banco de Dados (MySQL 5.7)
   db:
     image: mysql:5.7
     restart: always
@@ -13,8 +12,8 @@ services:
     volumes:
       - db_data:/var/lib/mysql
 
-  # 2. Primeira Instância do WordPress
-  wordpress1:
+  # Apenas UM serviço base declarado
+  wordpress_app:
     image: wordpress:5.4.2-php7.2-apache
     restart: always
     environment:
@@ -22,58 +21,21 @@ services:
       WORDPRESS_DB_USER: wp_user
       WORDPRESS_DB_PASSWORD: wp_password
       WORDPRESS_DB_NAME: wordpress_db
-    # Compartilha a pasta ./wp_html da sua máquina com o /var/www/html do container
     volumes:
       - ./wp_html:/var/www/html
     depends_on:
       - db
 
-  # 3. Segunda Instância do WordPress
-  wordpress2:
-    image: wordpress:5.4.2-php7.2-apache
-    restart: always
-    environment:
-      WORDPRESS_DB_HOST: db:3306
-      WORDPRESS_DB_USER: wp_user
-      WORDPRESS_DB_PASSWORD: wp_password
-      WORDPRESS_DB_NAME: wordpress_db
-    # Aponta para a MESMA pasta ./wp_html da máquina hospedeira
-    volumes:
-      - ./wp_html:/var/www/html
-    depends_on:
-      - db
-
-  # 4. Terceira Instância do WordPress
-  wordpress3:
-    image: wordpress:5.4.2-php7.2-apache
-    restart: always
-    environment:
-      WORDPRESS_DB_HOST: db:3306
-      WORDPRESS_DB_USER: wp_user
-      WORDPRESS_DB_PASSWORD: wp_password
-      WORDPRESS_DB_NAME: wordpress_db
-    # Aponta para a MESMA pasta ./wp_html da máquina hospedeira
-    volumes:
-      - ./wp_html:/var/www/html
-    depends_on:
-      - db
-
-  # 5. O Balanceador de Carga (Nginx 1.19.0)
   nginx:
     image: nginx:1.19.0
     restart: always
     ports:
       - "80:80"
     volumes:
-      # Mapeia o arquivo de configuração
       - ./nginx.conf:/etc/nginx/nginx.conf:ro
-      # Mapeia a pasta compartilhada do WordPress para o Nginx
       - ./wp_html:/usr/share/nginx/html:ro
     depends_on:
-      - wordpress1
-      - wordpress2
-      - wordpress3
+      - wordpress_app
 
 volumes:
-  # Volume nomeado para salvar o banco de dados
   db_data:
