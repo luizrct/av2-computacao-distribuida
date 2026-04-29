@@ -37,5 +37,17 @@ services:
     depends_on:
       - wordpress_app
 
+  locust:
+    image: locustio/locust
+    ports:
+      - "8089:8089"
+    volumes:
+      - ./:/mnt/locust
+    command: -f /mnt/locust/locustfile.py
+    environment:
+      - LOCUST_HOST=http://nginx
+    depends_on:
+      - nginx
+
 volumes:
   db_data:
