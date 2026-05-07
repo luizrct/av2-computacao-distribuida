@@ -9,3 +9,6 @@ for i in {1..3}; do curl -s -I http://localhost | grep X-Upstream; done
 
 Comando para listar os conteiners wordpress e seus respectivos IPs 
 sudo docker inspect -f '{{.Name}} -> {{range .NetworkSettings.Networks}}{{.IPAddress}}{{end}}' $(sudo docker-compose ps -q)
+
+
+python run_tests.py --scenarios low medium high hybrid --users 500 750 1000 --instances 1 2 3 --run-time 2m

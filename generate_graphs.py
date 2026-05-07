@@ -1,209 +1,195 @@
 import os
-import re
 import pandas as pd
 import matplotlib.pyplot as plt
 
-RESULTS_DIR = "results"
-OUTPUT_DIR = "graphs"
+INPUT_FILE = "clean_results.csv"
+OUTPUT_DIR = "graficos"
 
-SCENARIO_LABELS = {
-    "image_1mb": "Post com imagem ~1MB",
-    "text_400kb": "Post com texto ~400KB",
-    "image_300kb": "Post com imagem ~300KB",
-    "all": "Todos os cenários",
-}
+ORDEM_CARGAS = ["low", "medium", "high", "hybrid"]
 
-FILENAME_PATTERN = re.compile(
-    r"(?P<scenario>image_1mb|text_400kb|image_300kb|all)_(?P<users>\d+)_inst(?P<instances>\d+)_stats\.csv"
-)
+PALETA_INSTANCIAS = ["#AEC6CF", "#FFB347", "#B39EB5"]  # azul, laranja, roxo pastel
+PALETA_CARGAS = ["#77DD77", "#FDFD96", "#FF6961", "#CFCFC4"]  # verde, amarelo, vermelho, cinza pastel
 
-
-def ensure_output_dir():
+def criar_pasta_saida():
     os.makedirs(OUTPUT_DIR, exist_ok=True)
 
 
-def read_metrics_from_csv(file_path):
-    df = pd.read_csv(file_path)
+def carregar_dados():
+    df = pd.read_csv(INPUT_FILE)
 
-    row = df[df["Name"] == "Aggregated"]
+    df["users"] = df["users"].astype(int)
+    df["instances"] = df["instances"].astype(int)
+    df["requests"] = df["requests"].astype(float)
+    df["failures"] = df["failures"].astype(float)
+    df["p95"] = df["p95"].astype(float)
 
-    if row.empty:
-        row = df.iloc[[-1]]
+    df["tempo_resposta_s"] = df["p95"] / 1000
 
-    p95_ms = float(row["95%"].values[0])
-    request_count = int(row["Request Count"].values[0])
-    failure_count = int(row["Failure Count"].values[0])
+    df["taxa_falhas_pct"] = df.apply(
+        lambda row: (row["failures"] / row["requests"]) * 100
+        if row["requests"] > 0 else 0,
+        axis=1
+    )
 
-    failure_percentage = 0
-    if request_count > 0:
-        failure_percentage = (failure_count / request_count) * 100
+    # Forçar ordem das cargas
+    df["scenario"] = pd.Categorical(
+        df["scenario"],
+        categories=ORDEM_CARGAS,
+        ordered=True
+    )
 
-    return p95_ms / 1000, failure_percentage
+    return df
+
+def obter_limite_y(df, coluna):
+    valor_maximo = df[coluna].max()
+
+    if pd.isna(valor_maximo) or valor_maximo == 0:
+        return 1
+
+    return valor_maximo * 1.10
+
+def grafico_barras_agrupadas(
+    df,
+    eixo_x,
+    eixo_y,
+    barras,
+    titulo,
+    xlabel,
+    ylabel,
+    barrasLabel,
+    output_file,
+    ylim=None
+):
+    tabela = df.pivot_table(
+        index=eixo_x,
+        columns=barras,
+        values=eixo_y,
+        aggfunc="mean"
+    ).sort_index()
+
+    # garantir ordem das colunas quando for carga
+    if barras == "scenario":
+        tabela = tabela.reindex(columns=ORDEM_CARGAS)
+        cores = PALETA_CARGAS[:len(tabela.columns)]
+    else:
+        tabela = tabela.reindex(columns=sorted(tabela.columns))
+        cores = PALETA_INSTANCIAS[:len(tabela.columns)]
+
+    ax = tabela.plot(
+        kind="bar",
+        figsize=(10, 6),
+        width=0.8,
+        color=cores
+    )
+
+    ax.set_title(titulo)
+    ax.set_xlabel(xlabel)
+    ax.set_ylabel(ylabel)
+    ax.legend(title=barrasLabel)
+    ax.grid(axis="y", linestyle="--", alpha=0.4)
+
+    if ylim is not None:
+        ax.set_ylim(0, ylim)
+
+    plt.xticks(rotation=0)
+    plt.tight_layout()
+    plt.savefig(os.path.join(OUTPUT_DIR, output_file), dpi=300)
+    plt.close()
 
 
-def load_results():
-    data = []
-
-    for filename in os.listdir(RESULTS_DIR):
-        match = FILENAME_PATTERN.match(filename)
-
-        if not match:
+def gerar_estilo_1(df, ylim):
+    for indice, carga in enumerate(ORDEM_CARGAS, start=1):
+        dados = df[df["scenario"] == carga]
+        if dados.empty:
             continue
 
-        scenario = match.group("scenario")
-        users = int(match.group("users"))
-        instances = int(match.group("instances"))
-
-        file_path = os.path.join(RESULTS_DIR, filename)
-        p95_seconds, failure_percentage = read_metrics_from_csv(file_path)
-
-        data.append({
-            "scenario": scenario,
-            "users": users,
-            "instances": instances,
-            "p95_seconds": p95_seconds,
-            "failure_percentage": failure_percentage,
-        })
-
-    return pd.DataFrame(data)
-
-
-def plot_by_users(df, scenario, metric_column, ylabel, suffix):
-    scenario_df = df[df["scenario"] == scenario]
-
-    users = sorted(scenario_df["users"].unique())
-    instances = sorted(scenario_df["instances"].unique())
-
-    x = range(len(users))
-    bar_width = 0.8 / len(instances)
-
-    plt.figure(figsize=(9, 5))
-
-    for i, inst in enumerate(instances):
-        values = []
-
-        for user_count in users:
-            row = scenario_df[
-                (scenario_df["users"] == user_count) &
-                (scenario_df["instances"] == inst)
-            ]
-
-            values.append(0 if row.empty else row[metric_column].values[0])
-
-        positions = [
-            pos + (i - (len(instances) - 1) / 2) * bar_width
-            for pos in x
-        ]
-
-        plt.bar(
-            positions,
-            values,
-            width=bar_width,
-            label=f"{inst} instância" if inst == 1 else f"{inst} instâncias"
+        grafico_barras_agrupadas(
+            df=dados,
+            eixo_x="users",
+            eixo_y="tempo_resposta_s",
+            barras="instances",
+            titulo=f"Tempo de resposta por número de usuários - Carga {carga}",
+            xlabel="Usuários",
+            ylabel="Tempo de resposta P95 (s)",
+            barrasLabel="Instâncias",
+            output_file=f"estilo_1_tempo_resposta_carga_{indice}_{carga}.png",
+            ylim=ylim
         )
 
-    plt.xlabel("Número de usuários")
-    plt.ylabel(ylabel)
-    plt.title(SCENARIO_LABELS.get(scenario, scenario))
-    plt.xticks(list(x), users)
-    plt.legend()
-    plt.tight_layout()
 
-    output_path = os.path.join(OUTPUT_DIR, f"{scenario}_{suffix}_por_usuarios.png")
-    plt.savefig(output_path, dpi=300)
-    plt.close()
+def gerar_estilo_2(df, ylim):
+    for indice, carga in enumerate(ORDEM_CARGAS, start=1):
+        dados = df[df["scenario"] == carga]
+        if dados.empty:
+            continue
 
-    print(f"Gráfico salvo: {output_path}")
-
-
-def plot_by_instances(df, scenario, metric_column, ylabel, suffix):
-    scenario_df = df[df["scenario"] == scenario]
-
-    users = sorted(scenario_df["users"].unique())
-    instances = sorted(scenario_df["instances"].unique())
-
-    x = range(len(instances))
-    bar_width = 0.8 / len(users)
-
-    plt.figure(figsize=(9, 5))
-
-    for i, user_count in enumerate(users):
-        values = []
-
-        for inst in instances:
-            row = scenario_df[
-                (scenario_df["users"] == user_count) &
-                (scenario_df["instances"] == inst)
-            ]
-
-            values.append(0 if row.empty else row[metric_column].values[0])
-
-        positions = [
-            pos + (i - (len(users) - 1) / 2) * bar_width
-            for pos in x
-        ]
-
-        plt.bar(
-            positions,
-            values,
-            width=bar_width,
-            label=f"{user_count} usuários"
+        grafico_barras_agrupadas(
+            df=dados,
+            eixo_x="users",
+            eixo_y="taxa_falhas_pct",
+            barras="instances",
+            titulo=f"Taxa de falhas por número de usuários - Carga {carga}",
+            xlabel="Usuários",
+            ylabel="Taxa de falhas (%)",
+            barrasLabel="Instâncias",
+            output_file=f"estilo_2_taxa_falhas_carga_{indice}_{carga}.png",
+            ylim=ylim
         )
 
-    plt.xlabel("Número de instâncias")
-    plt.ylabel(ylabel)
-    plt.title(SCENARIO_LABELS.get(scenario, scenario))
-    plt.xticks(list(x), instances)
-    plt.legend()
-    plt.tight_layout()
 
-    output_path = os.path.join(OUTPUT_DIR, f"{scenario}_{suffix}_por_instancias.png")
-    plt.savefig(output_path, dpi=300)
-    plt.close()
+def gerar_estilo_3(df, ylim):
+    for instancia in sorted(df["instances"].unique()):
+        dados = df[df["instances"] == instancia]
+        if dados.empty:
+            continue
 
-    print(f"Gráfico salvo: {output_path}")
+        grafico_barras_agrupadas(
+            df=dados,
+            eixo_x="users",
+            eixo_y="tempo_resposta_s",
+            barras="scenario",
+            titulo=f"Tempo de resposta por tipo de carga - {instancia} instância(s)",
+            xlabel="Usuários",
+            ylabel="Tempo de resposta P95 (s)",
+            barrasLabel="Carga",
+            output_file=f"estilo_3_tempo_resposta_instancia_{instancia}.png",
+            ylim=ylim
+        )
+
+
+def gerar_estilo_4(df, ylim):
+    for instancia in sorted(df["instances"].unique()):
+        dados = df[df["instances"] == instancia]
+        if dados.empty:
+            continue
+
+        grafico_barras_agrupadas(
+            df=dados,
+            eixo_x="users",
+            eixo_y="taxa_falhas_pct",
+            barras="scenario",
+            titulo=f"Taxa de falhas por tipo de carga - {instancia} instância(s)",
+            xlabel="Usuários",
+            ylabel="Taxa de falhas (%)",
+            barrasLabel="Carga",
+            output_file=f"estilo_4_taxa_falhas_instancia_{instancia}.png",
+            ylim=ylim
+        )
 
 
 def main():
-    ensure_output_dir()
+    criar_pasta_saida()
+    df = carregar_dados()
 
-    df = load_results()
+    ylim_tempo = obter_limite_y(df, "tempo_resposta_s")
+    ylim_falhas = obter_limite_y(df, "taxa_falhas_pct")
 
-    if df.empty:
-        raise ValueError("Nenhum arquivo *_stats.csv válido foi encontrado.")
+    gerar_estilo_1(df, ylim_tempo)
+    gerar_estilo_2(df, ylim_falhas)
+    gerar_estilo_3(df, ylim_tempo)
+    gerar_estilo_4(df, ylim_falhas)
 
-    for scenario in sorted(df["scenario"].unique()):
-        plot_by_users(
-            df,
-            scenario,
-            metric_column="p95_seconds",
-            ylabel="Tempo de resposta (s)",
-            suffix="p95",
-        )
-
-        plot_by_users(
-            df,
-            scenario,
-            metric_column="failure_percentage",
-            ylabel="Falhas de requests (%)",
-            suffix="falhas",
-        )
-
-        plot_by_instances(
-            df,
-            scenario,
-            metric_column="p95_seconds",
-            ylabel="Tempo de resposta (s)",
-            suffix="p95",
-        )
-
-        plot_by_instances(
-            df,
-            scenario,
-            metric_column="failure_percentage",
-            ylabel="Falhas de requests (%)",
-            suffix="falhas",
-        )
+    print(f"Gráficos gerados em: {OUTPUT_DIR}")
 
 
 if __name__ == "__main__":
