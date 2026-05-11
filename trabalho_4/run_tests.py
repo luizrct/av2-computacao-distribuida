@@ -14,10 +14,10 @@ VALID_SCENARIOS = {
 }
 
 SCENARIO_HOSTS = {
-    "python": "http://web-python",
-    "python-cache": "http://web-python-cache",
-    "ruby": "http://web-ruby",
-    "ruby-cache": "http://web-ruby-cache",
+    "python": "http://api-python:5000",
+    "python-cache": "http://api-python-cache:5000",
+    "ruby": "http://api-ruby:4567",
+    "ruby-cache": "http://api-ruby-cache:4567",
 }
 
 
@@ -112,20 +112,16 @@ def ensure_results_dir(path):
 def stop_profile_services(profile):
     services = {
         "python": [
-            "web-python",
             "api-python",
         ],
         "python-cache": [
-            "web-python-cache",
             "api-python-cache",
             "redis",
         ],
         "ruby": [
-            "web-ruby",
             "api-ruby",
         ],
         "ruby-cache": [
-            "web-ruby-cache",
             "api-ruby-cache",
             "redis",
         ],

@@ -2,7 +2,7 @@ import os
 import re
 from pathlib import Path
 
-from locust import HttpUser, between, task
+from locust import HttpUser, constant, between, task
 
 
 URLS_FILE = Path("/mnt/urls.txt")
@@ -60,8 +60,7 @@ if REQUEST_MODE not in VALID_REQUEST_MODES:
 
 
 class LinkExtractorUser(HttpUser):
-    wait_time = between(1, 2)
-
+    wait_time = constant(0)
     @task
     def extract_links_sequence(self):
         for item in URLS[:10]:
@@ -75,7 +74,7 @@ class LinkExtractorUser(HttpUser):
             )
 
             with self.client.get(
-                "/",
+                "/api",
                 params={"url": url},
                 name=request_name,
                 catch_response=True,

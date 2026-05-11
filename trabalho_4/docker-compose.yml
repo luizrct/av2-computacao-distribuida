@@ -1,85 +1,11 @@
 services:
-  web-python:
-    image: linkextractor-web:python
-    build: ./www
-    ports:
-      - "8081:80"
-    environment:
-      - API_ENDPOINT=http://api-python:5000/api/
-    depends_on:
-      api-python:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "php -r \"exit(@file_get_contents('http://localhost/') !== false ? 0 : 1);\""]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    profiles:
-      - python
-
-  web-python-cache:
-    image: linkextractor-web:python-cache
-    build: ./www
-    ports:
-      - "8082:80"
-    environment:
-      - API_ENDPOINT=http://api-python-cache:5000/api/
-    depends_on:
-      api-python-cache:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "php -r \"exit(@file_get_contents('http://localhost/') !== false ? 0 : 1);\""]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    profiles:
-      - python-cache
-
-  web-ruby:
-    image: linkextractor-web:ruby
-    build: ./www
-    ports:
-      - "8083:80"
-    environment:
-      - API_ENDPOINT=http://api-ruby:4567/api/
-    depends_on:
-      api-ruby:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "php -r \"exit(@file_get_contents('http://localhost/') !== false ? 0 : 1);\""]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    profiles:
-      - ruby
-
-  web-ruby-cache:
-    image: linkextractor-web:ruby-cache
-    build: ./www
-    ports:
-      - "8084:80"
-    environment:
-      - API_ENDPOINT=http://api-ruby-cache:4567/api/
-    depends_on:
-      api-ruby-cache:
-        condition: service_healthy
-    healthcheck:
-      test: ["CMD-SHELL", "php -r \"exit(@file_get_contents('http://localhost/') !== false ? 0 : 1);\""]
-      interval: 10s
-      timeout: 5s
-      retries: 10
-      start_period: 20s
-    profiles:
-      - ruby-cache
-
   api-python:
     image: linkextractor-api:python
     build: ./api-python
     environment:
       - USE_CACHE=false
+    ports:
+      - "8081:5000"
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=3)\""]
       interval: 10s
@@ -95,6 +21,8 @@ services:
     environment:
       - USE_CACHE=true
       - REDIS_URL=redis://redis:6379
+    ports:
+      - "8082:5000"
     depends_on:
       redis:
         condition: service_healthy
@@ -112,6 +40,8 @@ services:
     build: ./api-ruby
     environment:
       - USE_CACHE=false
+    ports:
+      - "8083:4567"
     volumes:
       - ./logs:/app/logs
     healthcheck:
@@ -129,6 +59,8 @@ services:
     environment:
       - USE_CACHE=true
       - REDIS_URL=redis://redis:6379
+    ports:
+      - "8084:4567"
     depends_on:
       redis:
         condition: service_healthy
