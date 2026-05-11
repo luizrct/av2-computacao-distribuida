@@ -1,0 +1,168 @@
+services:
+  web-python:
+    image: linkextractor-web:python
+    build: ./www
+    ports:
+      - "8081:80"
+    environment:
+      - API_ENDPOINT=http://api-python:5000/api/
+    depends_on:
+      api-python:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "php -r \"exit(@file_get_contents('http://localhost/') !== false ? 0 : 1);\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    profiles:
+      - python
+
+  web-python-cache:
+    image: linkextractor-web:python-cache
+    build: ./www
+    ports:
+      - "8082:80"
+    environment:
+      - API_ENDPOINT=http://api-python-cache:5000/api/
+    depends_on:
+      api-python-cache:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "php -r \"exit(@file_get_contents('http://localhost/') !== false ? 0 : 1);\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    profiles:
+      - python-cache
+
+  web-ruby:
+    image: linkextractor-web:ruby
+    build: ./www
+    ports:
+      - "8083:80"
+    environment:
+      - API_ENDPOINT=http://api-ruby:4567/api/
+    depends_on:
+      api-ruby:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "php -r \"exit(@file_get_contents('http://localhost/') !== false ? 0 : 1);\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    profiles:
+      - ruby
+
+  web-ruby-cache:
+    image: linkextractor-web:ruby-cache
+    build: ./www
+    ports:
+      - "8084:80"
+    environment:
+      - API_ENDPOINT=http://api-ruby-cache:4567/api/
+    depends_on:
+      api-ruby-cache:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "php -r \"exit(@file_get_contents('http://localhost/') !== false ? 0 : 1);\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    profiles:
+      - ruby-cache
+
+  api-python:
+    image: linkextractor-api:python
+    build: ./api-python
+    environment:
+      - USE_CACHE=false
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    profiles:
+      - python
+
+  api-python-cache:
+    image: linkextractor-api:python-cache
+    build: ./api-python
+    environment:
+      - USE_CACHE=true
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=3)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    profiles:
+      - python-cache
+
+  api-ruby:
+    image: linkextractor-api:ruby
+    build: ./api-ruby
+    environment:
+      - USE_CACHE=false
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD-SHELL", "ruby -r net/http -e \"exit(Net::HTTP.get_response(URI('http://localhost:4567/health')).is_a?(Net::HTTPSuccess) ? 0 : 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    profiles:
+      - ruby
+
+  api-ruby-cache:
+    image: linkextractor-api:ruby-cache
+    build: ./api-ruby
+    environment:
+      - USE_CACHE=true
+      - REDIS_URL=redis://redis:6379
+    depends_on:
+      redis:
+        condition: service_healthy
+    volumes:
+      - ./logs:/app/logs
+    healthcheck:
+      test: ["CMD-SHELL", "ruby -r net/http -e \"exit(Net::HTTP.get_response(URI('http://localhost:4567/health')).is_a?(Net::HTTPSuccess) ? 0 : 1)\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    profiles:
+      - ruby-cache
+
+  redis:
+    image: redis
+    healthcheck:
+      test: ["CMD", "redis-cli", "ping"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 10s
+    profiles:
+      - python-cache
+      - ruby-cache
+
+  locust:
+    image: locustio/locust
+    working_dir: /mnt/locust
+    volumes:
+      - ./locust:/mnt/locust
+      - ./results:/mnt/results
+      - ./urls.txt:/mnt/urls.txt
+    ports:
+      - "8090:8089"
+    profiles:
+      - test

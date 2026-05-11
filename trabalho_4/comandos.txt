@@ -1,0 +1,15 @@
+PYTHON:
+
+Sem cache:
+python run_tests.py --scenarios python --users 10 --run-time 20s
+
+Com cache:
+python run_tests.py --scenarios python-cache --users 10 --run-time 20s --clear-cache
+
+RUBY:
+
+Sem cache:
+python run_tests.py --scenarios ruby --users 10 --run-time 20s
+
+Com cache:
+python run_tests.py --scenarios ruby-cache --users 10 --run-time 20s --clear-cache

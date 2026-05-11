@@ -1,0 +1,10 @@
+python=https://www.python.org
+wikipedia=https://www.wikipedia.org
+github=https://github.com
+stackoverflow=https://stackoverflow.com
+django=https://www.djangoproject.com
+flask=https://flask.palletsprojects.com
+ruby=https://www.ruby-lang.org
+sinatra=https://sinatrarb.com
+redis=https://redis.io
+docker=https://www.docker.com
