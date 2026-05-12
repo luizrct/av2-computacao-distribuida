@@ -1,0 +1,10 @@
+Method,Name,Error,Occurrences
+GET,extract_links_gov_noticias,"ConnectionResetError(104, 'Connection reset by peer')",1
+GET,extract_links_taylor_swift,"ConnectionResetError(104, 'Connection reset by peer')",1
+GET,extract_links_unifor_medicina,"ConnectionResetError(104, 'Connection reset by peer')",6
+GET,extract_links_uol,"ConnectionResetError(104, 'Connection reset by peer')",1
+GET,extract_links_cnn,"ConnectionResetError(104, 'Connection reset by peer')",2
+GET,extract_links_gov_ia,"ConnectionResetError(104, 'Connection reset by peer')",2
+GET,extract_links_mozilla_css,"ConnectionResetError(104, 'Connection reset by peer')",1
+GET,extract_links_unifor_cc,"ConnectionResetError(104, 'Connection reset by peer')",3
+GET,extract_links_michael_jackson,"ConnectionResetError(104, 'Connection reset by peer')",4

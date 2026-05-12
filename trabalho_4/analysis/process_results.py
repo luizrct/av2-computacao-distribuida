@@ -12,15 +12,21 @@ OUTPUT_FILE = PROCESSED_DIR / "final_results.csv"
 
 
 def parse_filename(filename: str):
-    pattern = r"(python|ruby)_(cache|no_cache)_(\d+)_users_stats\.csv"
+    pattern = r"^(python|python-cache|ruby|ruby-cache)_(\d+)_stats\.csv$"
     match = re.match(pattern, filename)
 
     if not match:
         return None
 
-    language = match.group(1)
-    cache_mode = match.group(2)
-    users = int(match.group(3))
+    scenario = match.group(1)
+    users = int(match.group(2))
+
+    if scenario.endswith("-cache"):
+        language = scenario.replace("-cache", "")
+        cache_mode = "cache"
+    else:
+        language = scenario
+        cache_mode = "no_cache"
 
     return language, cache_mode, users
 

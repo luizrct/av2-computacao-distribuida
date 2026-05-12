@@ -13,14 +13,6 @@ VALID_SCENARIOS = {
     "ruby-cache",
 }
 
-SCENARIO_HOSTS = {
-    "python": "http://api-python:5000",
-    "python-cache": "http://api-python-cache:5000",
-    "ruby": "http://api-ruby:4567",
-    "ruby-cache": "http://api-ruby-cache:4567",
-}
-
-
 def parse_args():
     parser = argparse.ArgumentParser(
         description="Executa testes de desempenho do Link Extractor usando Locust em container Docker."
@@ -149,7 +141,15 @@ def stop_profile_services(profile):
     )
 
 
-def start_stack(profile, rebuild=False):
+def start_stack(scenario, rebuild=False):
+    PROFILES = {
+        "python": "python-api",
+        "python-cache": "python-api-cache",
+        "ruby": "ruby-api",
+        "ruby-cache": "ruby-api-cache",
+    }
+
+    profile = PROFILES[scenario]
     command = [
         "docker",
         "compose",
@@ -207,6 +207,14 @@ def cleanup_previous_csv(results_dir, scenario, users):
 
 
 def run_locust(scenario, users, run_time, results_dir, spawn_rate):
+
+    SCENARIO_HOSTS = {
+        "python": "http://api-python:5000",
+        "python-cache": "http://api-python-cache:5000",
+        "ruby": "http://api-ruby:4567",
+        "ruby-cache": "http://api-ruby-cache:4567",
+    }
+
     host = SCENARIO_HOSTS[scenario]
 
     if spawn_rate is None:
@@ -271,7 +279,7 @@ def main():
         print(f"[START] scenario={scenario}")
 
         start_stack(
-            profile=scenario,
+            scenario=scenario,
             rebuild=args.rebuild,
         )
 

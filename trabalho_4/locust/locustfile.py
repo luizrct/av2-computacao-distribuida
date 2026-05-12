@@ -1,8 +1,9 @@
+import itertools
 import os
 import re
 from pathlib import Path
 
-from locust import HttpUser, constant, between, task
+from locust import HttpUser, constant, task, between
 
 
 URLS_FILE = Path("/mnt/urls.txt")
@@ -30,56 +31,45 @@ def load_urls():
             if not line or line.startswith("#"):
                 continue
 
-            if "=" not in line:
-                raise ValueError(f"Linha inválida no urls.txt: {line}")
-
             alias, url = line.split("=", 1)
 
-            alias = normalize_alias(alias)
-            url = url.strip()
-
             urls.append({
-                "alias": alias,
-                "url": url,
+                "alias": normalize_alias(alias),
+                "url": url.strip(),
             })
-
-    if len(urls) < 10:
-        raise ValueError("O arquivo urls.txt precisa ter pelo menos 10 URLs.")
 
     return urls
 
 
 URLS = load_urls()
 
-
-if REQUEST_MODE not in VALID_REQUEST_MODES:
-    raise ValueError(
-        f"REQUEST_MODE inválido: {REQUEST_MODE}. "
-        f"Use: {', '.join(VALID_REQUEST_MODES)}"
-    )
+URL_CYCLE = itertools.cycle(URLS)
 
 
 class LinkExtractorUser(HttpUser):
-    wait_time = constant(0)
+    wait_time = between(1, 3)
+
     @task
-    def extract_links_sequence(self):
-        for item in URLS[:10]:
-            alias = item["alias"]
-            url = item["url"]
+    def extract_links(self):
+        item = next(URL_CYCLE)
 
-            request_name = (
-                "extract_links"
-                if REQUEST_MODE == "aggregated"
-                else f"extract_links_{alias}"
-            )
+        alias = item["alias"]
+        url = item["url"]
 
-            with self.client.get(
-                "/api",
-                params={"url": url},
-                name=request_name,
-                catch_response=True,
-            ) as response:
-                if response.status_code >= 400:
-                    response.failure(
-                        f"HTTP {response.status_code}: {response.text[:300]}"
-                    )
+        request_name = (
+            "extract_links"
+            if REQUEST_MODE == "aggregated"
+            else f"extract_links_{alias}"
+        )
+
+        with self.client.get(
+            "/api/",
+            params={"url": url},
+            name=request_name,
+            catch_response=True,
+        ) as response:
+
+            if response.status_code >= 400:
+                response.failure(
+                    f"HTTP {response.status_code}: {response.text[:300]}"
+                )

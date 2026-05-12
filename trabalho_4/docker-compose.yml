@@ -1,11 +1,87 @@
 services:
+  web-python:
+    image: linkextractor-web:python
+    build: ./www
+    ports:
+      - "8081:80"
+    environment:
+      - API_ENDPOINT=http://api-python:5000/api/
+    depends_on:
+      api-python:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "php -r \"exit(@file_get_contents('http://localhost/') !== false ? 0 : 1);\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    profiles:
+      - python-web
+
+  web-python-cache:
+    image: linkextractor-web:python-cache
+    build: ./www
+    ports:
+      - "8082:80"
+    environment:
+      - API_ENDPOINT=http://api-python-cache:5000/api/
+    depends_on:
+      api-python-cache:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "php -r \"exit(@file_get_contents('http://localhost/') !== false ? 0 : 1);\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    profiles:
+      - python-web-cache
+
+  web-ruby:
+    image: linkextractor-web:ruby
+    build: ./www
+    ports:
+      - "8083:80"
+    environment:
+      - API_ENDPOINT=http://api-ruby:4567/api/
+    depends_on:
+      api-ruby:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "php -r \"exit(@file_get_contents('http://localhost/') !== false ? 0 : 1);\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    profiles:
+      - ruby-web
+
+  web-ruby-cache:
+    image: linkextractor-web:ruby-cache
+    build: ./www
+    ports:
+      - "8084:80"
+    environment:
+      - API_ENDPOINT=http://api-ruby-cache:4567/api/
+    depends_on:
+      api-ruby-cache:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "php -r \"exit(@file_get_contents('http://localhost/') !== false ? 0 : 1);\""]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 20s
+    profiles:
+      - ruby-web-cache
+
   api-python:
     image: linkextractor-api:python
     build: ./api-python
     environment:
       - USE_CACHE=false
     ports:
-      - "8081:5000"
+    - "5001:5000"
     healthcheck:
       test: ["CMD-SHELL", "python -c \"import urllib.request; urllib.request.urlopen('http://localhost:5000/health', timeout=3)\""]
       interval: 10s
@@ -13,7 +89,8 @@ services:
       retries: 10
       start_period: 20s
     profiles:
-      - python
+      - python-api
+      - python-web
 
   api-python-cache:
     image: linkextractor-api:python-cache
@@ -22,7 +99,7 @@ services:
       - USE_CACHE=true
       - REDIS_URL=redis://redis:6379
     ports:
-      - "8082:5000"
+    - "5002:5000"
     depends_on:
       redis:
         condition: service_healthy
@@ -33,17 +110,18 @@ services:
       retries: 10
       start_period: 20s
     profiles:
-      - python-cache
+      - python-api-cache
+      - python-web-cache
 
   api-ruby:
     image: linkextractor-api:ruby
     build: ./api-ruby
     environment:
       - USE_CACHE=false
-    ports:
-      - "8083:4567"
     volumes:
       - ./logs:/app/logs
+    ports:
+      - "4561:4567"
     healthcheck:
       test: ["CMD-SHELL", "ruby -r net/http -e \"exit(Net::HTTP.get_response(URI('http://localhost:4567/health')).is_a?(Net::HTTPSuccess) ? 0 : 1)\""]
       interval: 10s
@@ -51,7 +129,8 @@ services:
       retries: 10
       start_period: 20s
     profiles:
-      - ruby
+      - ruby-api
+      - ruby-web
 
   api-ruby-cache:
     image: linkextractor-api:ruby-cache
@@ -60,7 +139,7 @@ services:
       - USE_CACHE=true
       - REDIS_URL=redis://redis:6379
     ports:
-      - "8084:4567"
+      - "4562:4567"
     depends_on:
       redis:
         condition: service_healthy
@@ -73,7 +152,8 @@ services:
       retries: 10
       start_period: 20s
     profiles:
-      - ruby-cache
+      - ruby-api-cache
+      - ruby-web-cache
 
   redis:
     image: redis
@@ -84,8 +164,10 @@ services:
       retries: 10
       start_period: 10s
     profiles:
-      - python-cache
-      - ruby-cache
+      - python-api-cache
+      - ruby-api-cache
+      - python-web-cache
+      - ruby-web-cache
 
   locust:
     image: locustio/locust

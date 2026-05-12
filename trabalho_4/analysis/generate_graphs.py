@@ -11,51 +11,77 @@ OUTPUT_DIR.mkdir(parents=True, exist_ok=True)
 df = pd.read_csv(INPUT_FILE)
 
 
-SCENARIO_LABELS = {
-    ("python", "cache"): "Python com cache",
-    ("python", "no_cache"): "Python sem cache",
-    ("ruby", "cache"): "Ruby com cache",
-    ("ruby", "no_cache"): "Ruby sem cache",
-}
-
-
 METRICS = {
-    "avg_response_time": "Tempo médio de resposta (ms)",
-    "median_response_time": "Mediana do tempo de resposta (ms)",
     "p95_response_time": "Percentil 95 do tempo de resposta (ms)",
-    "p99_response_time": "Percentil 99 do tempo de resposta (ms)",
-    "requests_per_second": "Requisições por segundo",
     "failure_rate": "Taxa de falha (%)",
 }
 
 
-for metric, ylabel in METRICS.items():
-    plt.figure(figsize=(10, 6))
+CACHE_LABELS = {
+    "no_cache": "Sem cache",
+    "cache": "Com cache",
+}
 
-    for (language, cache_mode), group in df.groupby(["language", "cache_mode"]):
-        group = group.sort_values("users")
 
-        label = SCENARIO_LABELS.get(
-            (language, cache_mode),
-            f"{language} {cache_mode}"
+LANGUAGE_LABELS = {
+    "python": "Python",
+    "ruby": "Ruby",
+}
+
+
+LANGUAGE_COLORS = {
+    "python": ["#93C5FD", "#2563EB"],  # azul claro / azul forte
+    "ruby": ["#FCA5A5", "#DC2626"],    # vermelho claro / vermelho forte
+}
+
+
+for language in ["python", "ruby"]:
+    language_df = df[df["language"] == language].copy()
+
+    for metric, ylabel in METRICS.items():
+        pivot_df = language_df.pivot_table(
+            index="users",
+            columns="cache_mode",
+            values=metric,
+            aggfunc="mean",
+        ).sort_index()
+
+        pivot_df = pivot_df.rename(columns=CACHE_LABELS)
+
+        colors = LANGUAGE_COLORS[language]
+
+        ax = pivot_df.plot(
+            kind="bar",
+            figsize=(10, 6),
+            width=0.8,
+            color=colors,
         )
 
-        plt.plot(
-            group["users"],
-            group[metric],
-            marker="o",
-            label=label,
+        title = f"{LANGUAGE_LABELS[language]} - {ylabel}"
+
+        ax.set_title(title)
+        ax.set_xlabel("Quantidade de usuários virtuais")
+        ax.set_ylabel(ylabel)
+        ax.set_yscale("log")
+        ax.grid(
+            axis="y",
+            linestyle="--",
+            alpha=0.5,
         )
 
-    plt.title(ylabel)
-    plt.xlabel("Quantidade de usuários virtuais")
-    plt.ylabel(ylabel)
-    plt.grid(True)
-    plt.legend()
-    plt.tight_layout()
+        ax.legend(title="Cenário")
 
-    output_file = OUTPUT_DIR / f"{metric}.png"
-    plt.savefig(output_file, dpi=300)
-    plt.close()
+        plt.xticks(rotation=0)
+        plt.tight_layout()
 
-    print(f"Gráfico gerado: {output_file}")
+        output_file = OUTPUT_DIR / f"{language}_{metric}.png"
+
+        plt.savefig(
+            output_file,
+            dpi=300,
+            bbox_inches="tight",
+        )
+
+        plt.close()
+
+        print(f"Gráfico gerado: {output_file}")
